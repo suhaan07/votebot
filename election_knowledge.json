@@ -1,0 +1,280 @@
+{
+  "country": "India",
+  "governing_body": "Election Commission of India (ECI)",
+  "website": "https://eci.gov.in",
+  "election_types": [
+    {
+      "id": "lok_sabha",
+      "name": "Lok Sabha (General) Election",
+      "description": "Election to the lower house of Parliament. Held every 5 years. Elects 543 Members of Parliament (MPs).",
+      "frequency": "Every 5 years",
+      "last_held": "April–June 2024",
+      "next_due": "2029"
+    },
+    {
+      "id": "vidhan_sabha",
+      "name": "Vidhan Sabha (State Assembly) Election",
+      "description": "Election to state legislative assemblies. Held every 5 years per state. Different states vote at different times.",
+      "frequency": "Every 5 years (per state)"
+    },
+    {
+      "id": "rajya_sabha",
+      "name": "Rajya Sabha Election",
+      "description": "Upper house of Parliament. Members are indirectly elected by state legislative assemblies, not the general public.",
+      "frequency": "Biennial (one-third retire every 2 years)"
+    },
+    {
+      "id": "local_body",
+      "name": "Local Body Elections",
+      "description": "Panchayat and Municipal elections conducted by State Election Commissions.",
+      "frequency": "Every 5 years"
+    },
+    {
+      "id": "by_election",
+      "name": "By-Elections",
+      "description": "Held when a seat becomes vacant due to death, resignation, or disqualification of a sitting member.",
+      "frequency": "As needed"
+    }
+  ],
+  "voter_eligibility": {
+    "age": 18,
+    "citizenship": "Indian citizen",
+    "residence": "Ordinarily resident in the constituency",
+    "disqualifications": [
+      "Unsound mind (declared by competent court)",
+      "Convicted and sentenced to 2+ years imprisonment",
+      "Corrupt electoral practices",
+      "Non-citizen"
+    ]
+  },
+  "voter_registration": {
+    "authority": "Electoral Registration Officer (ERO) of your constituency",
+    "form": "Form 6 (new registration)",
+    "form_correction": "Form 8 (correction/update)",
+    "form_transfer": "Form 6A (overseas voters)",
+    "online_portal": "https://voters.eci.gov.in",
+    "app": "Voter Helpline App (1950)",
+    "steps": [
+      "Visit voters.eci.gov.in or download Voter Helpline App",
+      "Click 'New Registration' and fill Form 6",
+      "Upload proof of age (Aadhaar/Birth Certificate/Passport)",
+      "Upload proof of residence (Aadhaar/Utility Bill/Ration Card)",
+      "Submit and note your reference number",
+      "Wait for verification by Booth Level Officer (BLO)",
+      "Your name appears in the electoral roll within 30 days"
+    ],
+    "documents_required": [
+      "Proof of Age: Aadhaar Card / Birth Certificate / School Certificate / Passport",
+      "Proof of Residence: Aadhaar / Utility Bill / Bank Passbook / Ration Card",
+      "Passport-size photograph"
+    ]
+  },
+  "voter_id": {
+    "official_name": "Electors Photo Identity Card (EPIC)",
+    "also_known_as": "Voter ID Card",
+    "issuing_authority": "Election Commission of India",
+    "download": "Digital Voter ID (e-EPIC) available at voters.eci.gov.in",
+    "helpline": "1950"
+  },
+  "election_process_phases": [
+    {
+      "phase": 1,
+      "name": "Announcement of Election Schedule",
+      "description": "The Election Commission announces the election schedule, including polling dates, and the Model Code of Conduct (MCC) comes into force immediately.",
+      "key_events": [
+        "ECI press conference announces dates",
+        "Model Code of Conduct activated",
+        "Government cannot announce new schemes/policies",
+        "Transfer of senior officials by government is restricted"
+      ],
+      "typical_duration": "1–2 days"
+    },
+    {
+      "phase": 2,
+      "name": "Nomination Filing",
+      "description": "Candidates file their nomination papers with the Returning Officer (RO) of the constituency.",
+      "key_events": [
+        "Candidate fills Form 2B (nomination paper)",
+        "Deposits security amount (₹25,000 for General; ₹12,500 for SC/ST)",
+        "Files affidavit disclosing assets, liabilities, criminal records",
+        "10 proposers from the constituency required (for non-party candidates)"
+      ],
+      "typical_duration": "7–14 days from announcement"
+    },
+    {
+      "phase": 3,
+      "name": "Scrutiny of Nominations",
+      "description": "The Returning Officer scrutinizes all nomination papers for validity.",
+      "key_events": [
+        "RO checks age, citizenship, constituency membership",
+        "Verifies supporting documents",
+        "Objections can be raised by other candidates"
+      ],
+      "typical_duration": "1 day (the day after last date of nomination)"
+    },
+    {
+      "phase": 4,
+      "name": "Withdrawal of Candidatures",
+      "description": "Candidates can withdraw from the election up to 2 PM on the last date of withdrawal.",
+      "key_events": [
+        "Candidate submits withdrawal notice to RO",
+        "Cannot be withdrawn after deadline",
+        "Final list of candidates published"
+      ],
+      "typical_duration": "2 days after scrutiny"
+    },
+    {
+      "phase": 5,
+      "name": "Election Campaign",
+      "description": "Political parties and candidates campaign to win voter support.",
+      "key_events": [
+        "Rallies, road shows, door-to-door campaigns",
+        "Media advertisements (print, TV, digital)",
+        "Expenditure limit: ₹95 lakh (Lok Sabha), ₹40 lakh (Assembly)",
+        "Campaign ends 48 hours before polling (Silent Period)"
+      ],
+      "typical_duration": "2–4 weeks"
+    },
+    {
+      "phase": 6,
+      "name": "Polling Day",
+      "description": "Voters cast their votes at designated polling booths using Electronic Voting Machines (EVMs).",
+      "key_events": [
+        "Polling stations open 7 AM – 6 PM",
+        "Voter shows EPIC or alternate ID (Aadhaar, Passport, etc.)",
+        "Indelible ink applied to left index finger",
+        "Vote cast on EVM; VVPAT slip shown for 7 seconds",
+        "National/state holiday declared"
+      ],
+      "typical_duration": "1 day (may be multiple phases across country)"
+    },
+    {
+      "phase": 7,
+      "name": "Counting of Votes",
+      "description": "EVM votes are counted at Counting Centres under strict supervision.",
+      "key_events": [
+        "Postal ballots counted first",
+        "EVM counting begins round by round",
+        "Agents of all candidates present",
+        "Results declared constituency by constituency",
+        "Winning candidate issued Election Certificate"
+      ],
+      "typical_duration": "1 day (usually 3–5 days after polling)"
+    },
+    {
+      "phase": 8,
+      "name": "Declaration of Results & Formation of Government",
+      "description": "After all results are declared, the winning party/coalition forms the government.",
+      "key_events": [
+        "ECI declares official results",
+        "Winning party invited to form government",
+        "President/Governor invites leader of majority to take oath",
+        "Council of Ministers sworn in"
+      ],
+      "typical_duration": "1–2 weeks after counting"
+    }
+  ],
+  "model_code_of_conduct": {
+    "name": "Model Code of Conduct (MCC)",
+    "description": "A set of guidelines issued by the ECI to regulate political parties and candidates during elections.",
+    "key_rules": [
+      "No party in power shall use government resources for campaigning",
+      "No announcement of new government schemes after MCC kicks in",
+      "No religious or communal appeals for votes",
+      "No distribution of cash, gifts, or liquor",
+      "Permission required for rallies and processions",
+      "No use of government vehicles for campaign purposes"
+    ],
+    "enforcement": "ECI can take action including cancelling candidature, FIR registration"
+  },
+  "evm_vvpat": {
+    "evm": {
+      "full_name": "Electronic Voting Machine",
+      "description": "A tamper-proof machine used to cast and store votes electronically. Consists of a Control Unit (with polling officer) and Ballot Unit (with voter).",
+      "introduced": "1982 (partial), nationwide from 2004"
+    },
+    "vvpat": {
+      "full_name": "Voter Verifiable Paper Audit Trail",
+      "description": "Attached to EVM. After voting, displays a slip with the candidate name and symbol for 7 seconds, then drops into a sealed box.",
+      "introduced": "2019 Lok Sabha (nationwide)"
+    }
+  },
+  "key_officials": [
+    {
+      "role": "Chief Election Commissioner (CEC)",
+      "responsibility": "Head of the Election Commission of India. Oversees entire election process."
+    },
+    {
+      "role": "Election Commissioner",
+      "responsibility": "Assists CEC. Currently there are 2 Election Commissioners alongside the CEC."
+    },
+    {
+      "role": "Returning Officer (RO)",
+      "responsibility": "In charge of conducting election in a specific constituency."
+    },
+    {
+      "role": "Electoral Registration Officer (ERO)",
+      "responsibility": "Maintains the electoral roll for a constituency."
+    },
+    {
+      "role": "Booth Level Officer (BLO)",
+      "responsibility": "Manages voter registration at the booth level. First point of contact for voters."
+    },
+    {
+      "role": "Observer",
+      "responsibility": "IAS/IPS officer deputed by ECI to monitor election conduct in a constituency."
+    }
+  ],
+  "alternate_ids_for_voting": [
+    "Aadhaar Card",
+    "MNREGA Job Card",
+    "Bank / Post Office Passbook with photo",
+    "Health Insurance Smart Card (under ESIC)",
+    "Driving Licence",
+    "PAN Card",
+    "Indian Passport",
+    "Pension document with photo",
+    "NPR Smart Card",
+    "Service Identity Card (Central/State Govt employees)"
+  ],
+  "important_helplines": {
+    "voter_helpline": "1950",
+    "eci_website": "https://eci.gov.in",
+    "voter_portal": "https://voters.eci.gov.in",
+    "cvigil_app": "cVIGIL App — report MCC violations with geotagged photo/video"
+  },
+  "faq": [
+    {
+      "q": "Can I vote if I don't have a Voter ID card?",
+      "a": "Yes! ECI allows 12 alternate photo identity documents including Aadhaar, Driving Licence, PAN Card, Passport, etc. Your name must be on the electoral roll."
+    },
+    {
+      "q": "How do I find my polling booth?",
+      "a": "Visit voters.eci.gov.in or call 1950. You can also use the Voter Helpline App. Search by name or EPIC number to get your booth details."
+    },
+    {
+      "q": "What if my name is not on the voter list?",
+      "a": "You cannot vote until your name is added. Register via Form 6 on voters.eci.gov.in. For immediate elections, approach the ERO or BLO with your documents."
+    },
+    {
+      "q": "Can NRIs vote in Indian elections?",
+      "a": "Yes. NRIs can register as overseas electors using Form 6A. However, they must be physically present in their constituency to vote — there is no postal/proxy voting for NRIs yet."
+    },
+    {
+      "q": "What is NOTA?",
+      "a": "NOTA stands for 'None of the Above'. It is an option on the EVM that allows voters to reject all candidates. Introduced in 2013. NOTA votes are counted but do not affect the result — the candidate with most votes still wins."
+    },
+    {
+      "q": "How many phases does a Lok Sabha election have?",
+      "a": "It varies. The 2024 Lok Sabha election had 7 phases spread over April–June. Phases are decided by ECI based on security and logistical requirements."
+    },
+    {
+      "q": "What is the Model Code of Conduct?",
+      "a": "The MCC is a set of ECI guidelines that restricts political parties and the government from using official machinery for campaign purposes. It kicks in the moment the election schedule is announced."
+    },
+    {
+      "q": "How can I report election violations?",
+      "a": "Use the cVIGIL app to report Model Code of Conduct violations with a geotagged photo or video. ECI teams respond within 100 minutes."
+    }
+  ]
+}
