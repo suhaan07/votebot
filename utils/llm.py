@@ -3,6 +3,8 @@ import os
 from pathlib import Path
 from google import genai
 from google.genai import types
+from dotenv import load_dotenv
+load_dotenv()
 
 _KB_PATH = Path(__file__).parent.parent / "data" / "election_knowledge.json"
 
@@ -33,14 +35,15 @@ def get_gemini_model():
         raise ValueError("GEMINI_API_KEY not set.")
     return genai.Client(api_key=api_key)
 
-def create_chat_session(client):
+def create_chat_session(client, history=None):
     return client.chats.create(
-        model="gemini-2.0-flash-lite",
+        model="gemini-2.5-flash",
         config=types.GenerateContentConfig(
             system_instruction=SYSTEM_PROMPT,
             temperature=0.3,
             max_output_tokens=600,
-        )
+        ),
+        history=history
     )
 
 def ask_votebot(chat_session, user_message: str) -> str:
@@ -49,6 +52,17 @@ def ask_votebot(chat_session, user_message: str) -> str:
         return response.text
     except Exception as e:
         return f"⚠️ Sorry, I ran into an issue: {str(e)}. Please try again."
+
+def translate_text(client, text: str, target_lang: str) -> str:
+    prompt = f"Translate the following text to {target_lang}. Preserve all markdown formatting, emojis, and structure. Only output the translated text:\n\n{text}"
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+        )
+        return response.text
+    except Exception as e:
+        raise e
 
 def check_eligibility(age: int, is_citizen: bool, is_resident: bool, disqualified: bool) -> dict:
     reasons = []
