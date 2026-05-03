@@ -21,12 +21,15 @@ KNOWLEDGE BASE:
 {KNOWLEDGE_BASE}
 
 GUIDELINES:
-1. Be simple and clear — your users may be first-time voters.
+1. Be simple and clear - your users may be first-time voters.
 2. Always be politically NEUTRAL. Never favour any party or candidate.
 3. Use numbered steps when explaining a process.
-4. End responses with: "💡 You might also want to know:" and suggest a follow-up question.
+4. End responses with: "Tip:  You might also want to know:" and suggest a follow-up question.
 5. Keep answers under 250 words unless asked for more detail.
 6. Support both Hindi and English questions.
+7. CRITICAL: NEVER use the characters "Rs. ", "-" (en-dash), or "-" (em-dash). 
+   - Instead of "Rs. ", always use "Rs.".
+   - Instead of "-" or "-", always use a simple hyphen "-".
 """
 
 def get_gemini_model():
@@ -51,7 +54,7 @@ def ask_votebot(chat_session, user_message: str) -> str:
         response = chat_session.send_message(user_message)
         return response.text
     except Exception as e:
-        return f"⚠️ Sorry, I ran into an issue: {str(e)}. Please try again."
+        return f"Warning:  Sorry, I ran into an issue: {str(e)}. Please try again."
 
 def translate_messages(client, messages: list[dict], target_lang: str) -> None:
     import json
@@ -103,6 +106,7 @@ Summarize the candidate's background into exactly 3 clear bullet points focusing
 3. Any red flags, specifically criminal cases.
 Ensure the response is extremely concise and objective.
 Translate the final output into {target_lang}.
+CRITICAL: NEVER use the characters "Rs. ", "-" (en-dash), or "-" (em-dash). Use "Rs." and hyphens "-" instead.
 
 Candidate Data:
 {candidate_json}
@@ -114,43 +118,53 @@ Candidate Data:
         )
         return response.text.strip()
     except Exception as e:
-        return f"⚠️ Could not generate summary. Error: {str(e)}"
+        return f"Warning:  Could not generate summary. Error: {str(e)}"
 
-def check_eligibility(age: int, is_citizen: bool, is_resident: bool, disqualified: bool) -> dict:
+def check_eligibility(age: int, is_citizen: bool, is_resident: bool, disqualified: bool, lang: str = "en") -> dict:
+    from utils.translations import UI_TRANSLATIONS
+    
+    def t_local(key, **kwargs):
+        text = UI_TRANSLATIONS.get(key, {}).get(lang, UI_TRANSLATIONS.get(key, {}).get("en", ""))
+        return text.format(**kwargs)
+
     reasons = []
     next_steps = []
     eligible = True
 
     if age < 18:
         eligible = False
-        reasons.append(f"❌ You must be at least 18 years old. You are {age}.")
-        next_steps.append("You can register as a voter when you turn 18.")
+        reasons.append(f"(No) {t_local('err_age', age=age)}")
+        next_steps.append(t_local('step_register_18'))
     else:
-        reasons.append(f"✅ Age {age} — meets the minimum age requirement of 18.")
+        reasons.append(f" {t_local('ok_age', age=age)}")
 
     if not is_citizen:
         eligible = False
-        reasons.append("❌ Only Indian citizens can vote in Indian elections.")
+        reasons.append(f"(No) {t_local('err_citizen')}")
     else:
-        reasons.append("✅ Indian citizenship confirmed.")
+        reasons.append(f" {t_local('ok_citizen')}")
 
     if not is_resident:
         eligible = False
-        reasons.append("❌ You must be ordinarily resident in the constituency to register.")
-        next_steps.append("NRIs can register as overseas electors via Form 6A at voters.eci.gov.in.")
+        reasons.append(f"(No) {t_local('err_resident')}")
+        next_steps.append(t_local('step_nri'))
     else:
-        reasons.append("✅ Resident in the constituency.")
+        reasons.append(f"🏠 {t_local('ok_resident')}")
 
     if disqualified:
         eligible = False
-        reasons.append("❌ You have indicated a disqualification.")
+        reasons.append(f"(No) {t_local('err_disqualified')}")
 
     if eligible:
         next_steps = [
-            "Visit voters.eci.gov.in to check if your name is on the electoral roll.",
-            "If not registered, fill Form 6 online — takes under 10 minutes.",
-            "Keep your Aadhaar and proof of residence handy.",
-            "Call 1950 (Voter Helpline) if you need assistance.",
+            t_local('step_roll'),
+            t_local('step_form6'),
+            t_local('step_docs'),
+            t_local('step_helpline'),
         ]
 
-    return {"eligible": eligible, "reasons": reasons, "next_steps": next_steps}
+    return {
+        "eligible": eligible,
+        "reasons": reasons,
+        "next_steps": next_steps
+    }

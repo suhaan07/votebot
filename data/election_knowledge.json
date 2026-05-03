@@ -8,7 +8,7 @@
       "name": "Lok Sabha (General) Election",
       "description": "Election to the lower house of Parliament. Held every 5 years. Elects 543 Members of Parliament (MPs).",
       "frequency": "Every 5 years",
-      "last_held": "April–June 2024",
+      "last_held": "April-June 2024",
       "next_due": "2029"
     },
     {
@@ -87,7 +87,7 @@
         "Government cannot announce new schemes/policies",
         "Transfer of senior officials by government is restricted"
       ],
-      "typical_duration": "1–2 days"
+      "typical_duration": "1-2 days"
     },
     {
       "phase": 2,
@@ -95,11 +95,11 @@
       "description": "Candidates file their nomination papers with the Returning Officer (RO) of the constituency.",
       "key_events": [
         "Candidate fills Form 2B (nomination paper)",
-        "Deposits security amount (₹25,000 for General; ₹12,500 for SC/ST)",
+        "Deposits security amount (Rs. 25,000 for General; Rs. 12,500 for SC/ST)",
         "Files affidavit disclosing assets, liabilities, criminal records",
         "10 proposers from the constituency required (for non-party candidates)"
       ],
-      "typical_duration": "7–14 days from announcement"
+      "typical_duration": "7-14 days"
     },
     {
       "phase": 3,
@@ -110,7 +110,7 @@
         "Verifies supporting documents",
         "Objections can be raised by other candidates"
       ],
-      "typical_duration": "1 day (the day after last date of nomination)"
+      "typical_duration": "~1 day"
     },
     {
       "phase": 4,
@@ -121,7 +121,7 @@
         "Cannot be withdrawn after deadline",
         "Final list of candidates published"
       ],
-      "typical_duration": "2 days after scrutiny"
+      "typical_duration": "2 days"
     },
     {
       "phase": 5,
@@ -130,23 +130,23 @@
       "key_events": [
         "Rallies, road shows, door-to-door campaigns",
         "Media advertisements (print, TV, digital)",
-        "Expenditure limit: ₹95 lakh (Lok Sabha), ₹40 lakh (Assembly)",
+        "Expenditure limit: Rs. 95 lakh (Lok Sabha), Rs. 40 lakh (Assembly)",
         "Campaign ends 48 hours before polling (Silent Period)"
       ],
-      "typical_duration": "2–4 weeks"
+      "typical_duration": "2-4 weeks"
     },
     {
       "phase": 6,
       "name": "Polling Day",
       "description": "Voters cast their votes at designated polling booths using Electronic Voting Machines (EVMs).",
       "key_events": [
-        "Polling stations open 7 AM – 6 PM",
+        "Polling stations open 7 AM - 6 PM",
         "Voter shows EPIC or alternate ID (Aadhaar, Passport, etc.)",
         "Indelible ink applied to left index finger",
         "Vote cast on EVM; VVPAT slip shown for 7 seconds",
         "National/state holiday declared"
       ],
-      "typical_duration": "1 day (may be multiple phases across country)"
+      "typical_duration": "1 day"
     },
     {
       "phase": 7,
@@ -159,7 +159,7 @@
         "Results declared constituency by constituency",
         "Winning candidate issued Election Certificate"
       ],
-      "typical_duration": "1 day (usually 3–5 days after polling)"
+      "typical_duration": "1 day"
     },
     {
       "phase": 8,
@@ -171,7 +171,7 @@
         "President/Governor invites leader of majority to take oath",
         "Council of Ministers sworn in"
       ],
-      "typical_duration": "1–2 weeks after counting"
+      "typical_duration": "1-2 weeks"
     }
   ],
   "model_code_of_conduct": {
@@ -241,7 +241,7 @@
     "voter_helpline": "1950",
     "eci_website": "https://eci.gov.in",
     "voter_portal": "https://voters.eci.gov.in",
-    "cvigil_app": "cVIGIL App — report MCC violations with geotagged photo/video"
+    "cvigil_app": "cVIGIL App - report MCC violations with geotagged photo/video"
   },
   "faq": [
     {
@@ -258,15 +258,15 @@
     },
     {
       "q": "Can NRIs vote in Indian elections?",
-      "a": "Yes. NRIs can register as overseas electors using Form 6A. However, they must be physically present in their constituency to vote — there is no postal/proxy voting for NRIs yet."
+      "a": "Yes. NRIs can register as overseas electors using Form 6A. However, they must be physically present in their constituency to vote - there is no postal/proxy voting for NRIs yet."
     },
     {
       "q": "What is NOTA?",
-      "a": "NOTA stands for 'None of the Above'. It is an option on the EVM that allows voters to reject all candidates. Introduced in 2013. NOTA votes are counted but do not affect the result — the candidate with most votes still wins."
+      "a": "NOTA stands for 'None of the Above'. It is an option on the EVM that allows voters to reject all candidates. Introduced in 2013. NOTA votes are counted but do not affect the result - the candidate with most votes still wins."
     },
     {
       "q": "How many phases does a Lok Sabha election have?",
-      "a": "It varies. The 2024 Lok Sabha election had 7 phases spread over April–June. Phases are decided by ECI based on security and logistical requirements."
+      "a": "It varies. The 2024 Lok Sabha election had 7 phases spread over April-June. Phases are decided by ECI based on security and logistical requirements."
     },
     {
       "q": "What is the Model Code of Conduct?",
