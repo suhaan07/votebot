@@ -1,0 +1,87 @@
+[
+    {
+        "constituency": "New Delhi",
+        "state": "Delhi",
+        "pincodes": ["110001", "110011", "110016", "110021"],
+        "candidates": [
+            {
+                "name": "Bansuri Swaraj",
+                "party": "Bharatiya Janata Party (BJP)",
+                "education": "Barrister-at-Law, Inner Temple, London; Master of Studies, Oxford University",
+                "total_assets_inr": "19,00,00,000",
+                "total_liabilities_inr": "0",
+                "criminal_cases": 0,
+                "profession": "Advocate, Supreme Court of India",
+                "age": 40
+            },
+            {
+                "name": "Somnath Bharti",
+                "party": "Aam Aadmi Party (AAP)",
+                "education": "M.Sc (IIT Delhi), LLB (Delhi University)",
+                "total_assets_inr": "2,50,00,000",
+                "total_liabilities_inr": "15,00,000",
+                "criminal_cases": 4,
+                "criminal_case_details": "Charges related to rioting, unlawful assembly, and damage to public property during protests.",
+                "profession": "Advocate & Politician",
+                "age": 55
+            }
+        ]
+    },
+    {
+        "constituency": "Varanasi",
+        "state": "Uttar Pradesh",
+        "pincodes": ["221001", "221002", "221005", "221010"],
+        "candidates": [
+            {
+                "name": "Narendra Modi",
+                "party": "Bharatiya Janata Party (BJP)",
+                "education": "MA in Political Science (Gujarat University)",
+                "total_assets_inr": "3,02,00,000",
+                "total_liabilities_inr": "0",
+                "criminal_cases": 0,
+                "profession": "Prime Minister of India",
+                "age": 73
+            },
+            {
+                "name": "Ajay Rai",
+                "party": "Indian National Congress (INC)",
+                "education": "Graduate",
+                "total_assets_inr": "1,20,00,000",
+                "total_liabilities_inr": "5,00,000",
+                "criminal_cases": 18,
+                "criminal_case_details": "Pending cases under various sections including criminal intimidation, rioting, and election law violations.",
+                "profession": "Politician",
+                "age": 54
+            }
+        ]
+    },
+    {
+        "constituency": "Wayanad",
+        "state": "Kerala",
+        "pincodes": ["673121", "673592", "673122", "670645"],
+        "candidates": [
+            {
+                "name": "Rahul Gandhi",
+                "party": "Indian National Congress (INC)",
+                "education": "M.Phil in Development Studies, Cambridge University",
+                "total_assets_inr": "20,39,00,000",
+                "total_liabilities_inr": "49,79,000",
+                "criminal_cases": 18,
+                "criminal_case_details": "Multiple defamation cases filed by political opponents across different states; National Herald case.",
+                "profession": "Politician",
+                "age": 53
+            },
+            {
+                "name": "Annie Raja",
+                "party": "Communist Party of India (CPI)",
+                "education": "Pre-Degree",
+                "total_assets_inr": "71,00,000",
+                "total_liabilities_inr": "0",
+                "criminal_cases": 1,
+                "criminal_case_details": "Violation of prohibitory orders during a protest.",
+                "profession": "Social Worker",
+                "age": 59
+            }
+        ]
+    }
+]

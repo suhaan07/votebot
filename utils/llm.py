@@ -37,7 +37,7 @@ def get_gemini_model():
 
 def create_chat_session(client, history=None):
     return client.chats.create(
-        model="gemini-2.5-flash",
+        model="gemini-flash-lite-latest",
         config=types.GenerateContentConfig(
             system_instruction=SYSTEM_PROMPT,
             temperature=0.3,
@@ -53,16 +53,68 @@ def ask_votebot(chat_session, user_message: str) -> str:
     except Exception as e:
         return f"⚠️ Sorry, I ran into an issue: {str(e)}. Please try again."
 
-def translate_text(client, text: str, target_lang: str) -> str:
-    prompt = f"Translate the following text to {target_lang}. Preserve all markdown formatting, emojis, and structure. Only output the translated text:\n\n{text}"
+def translate_messages(client, messages: list[dict], target_lang: str) -> None:
+    import json
+    texts = [m["content"] for m in messages]
+    prompt = f"Translate the following JSON array of strings to {target_lang}. Preserve all formatting. Output ONLY a valid JSON array of strings:\n\n{json.dumps(texts)}"
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-flash-lite-latest",
             contents=prompt,
         )
-        return response.text
+        cleaned = response.text.strip()
+        if cleaned.startswith("```json"): cleaned = cleaned[7:]
+        if cleaned.endswith("```"): cleaned = cleaned[:-3]
+        translated_texts = json.loads(cleaned.strip())
+        
+        if len(translated_texts) == len(messages):
+            for i, msg in enumerate(messages):
+                msg["content"] = translated_texts[i]
+                if "audio" in msg: msg.pop("audio")
     except Exception as e:
-        raise e
+        print(f"Batch Translation Error: {e}")
+
+def extract_age_from_id(client, image_bytes: bytes) -> int:
+    import datetime
+    from google.genai import types
+    
+    prompt = "You are an OCR ID scanner. Extract the Date of Birth (DOB) from this ID card. If you find a DOB, calculate the current age based on today's date, and output ONLY the integer age. Do not output anything else. If you cannot find a DOB, output 20."
+    try:
+        response = client.models.generate_content(
+            model="gemini-flash-lite-latest",
+            contents=[
+                types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
+                prompt
+            ]
+        )
+        age_str = response.text.strip()
+        return int(age_str)
+    except Exception as e:
+        print(f"OCR Error: {e}")
+        return 20
+
+def summarize_candidate(client, candidate: dict, target_lang: str) -> str:
+    import json
+    candidate_json = json.dumps(candidate, indent=2)
+    prompt = f"""You are an unbiased, objective election analyst. Analyze the following candidate data extracted from their election affidavit.
+Summarize the candidate's background into exactly 3 clear bullet points focusing on:
+1. Educational background and profession.
+2. Financial standing (Total Assets vs Liabilities).
+3. Any red flags, specifically criminal cases.
+Ensure the response is extremely concise and objective.
+Translate the final output into {target_lang}.
+
+Candidate Data:
+{candidate_json}
+"""
+    try:
+        response = client.models.generate_content(
+            model="gemini-flash-lite-latest",
+            contents=prompt,
+        )
+        return response.text.strip()
+    except Exception as e:
+        return f"⚠️ Could not generate summary. Error: {str(e)}"
 
 def check_eligibility(age: int, is_citizen: bool, is_resident: bool, disqualified: bool) -> dict:
     reasons = []

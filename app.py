@@ -11,7 +11,8 @@ import tempfile
 from pathlib import Path
 from dotenv import load_dotenv
 from google.genai import types
-from utils.llm import get_gemini_model, create_chat_session, ask_votebot, check_eligibility, translate_text
+from utils.llm import get_gemini_model, create_chat_session, ask_votebot, check_eligibility, translate_messages, extract_age_from_id, summarize_candidate
+from utils.translations import LANGUAGES, UI_TRANSLATIONS
 
 load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
@@ -31,56 +32,24 @@ def load_kb():
 
 kb = load_kb()
 
+@st.cache_data
+def load_candidates():
+    c_path = Path(__file__).parent / "data" / "candidates.json"
+    if c_path.exists():
+        with open(c_path, "r") as f:
+            return json.load(f)
+    return []
+
+candidates_data = load_candidates()
+
 if "lang" not in st.session_state:
     st.session_state["lang"] = "en"
 
-is_hindi = st.session_state["lang"] == "hi"
-
-T = {
-    "title": ("🗳️ VoteBot", "🗳️ वोटबॉट"),
-    "subtitle": (
-        "Your AI guide to India's Election Process — powered by Gemini & ECI data",
-        "भारत की चुनाव प्रक्रिया का AI गाइड — Gemini और ECI डेटा द्वारा संचालित"
-    ),
-    "clear_chat": ("🗑️ Clear Chat", "🗑️ चैट साफ करें"),
-    "tab_chat": ("💬 Ask VoteBot", "💬 वोटबॉट से पूछें"),
-    "tab_timeline": ("📅 Election Timeline", "📅 चुनाव टाइमलाइन"),
-    "tab_eligibility": ("✅ Am I Eligible?", "✅ क्या मैं पात्र हूं?"),
-    "tab_guide": ("📖 Voter Guide", "📖 मतदाता गाइड"),
-    "chat_placeholder": (
-        "Ask about voter registration, election process, EVMs...",
-        "मतदाता पंजीकरण, चुनाव प्रक्रिया के बारे में पूछें..."
-    ),
-    "welcome": (
-        "Namaste! 🙏 I'm **VoteBot**, your guide to India's election process.\n\nI can help you with:\n- 🗂️ How to **register to vote**\n- 📋 Understanding the **election process** step by step\n- 🏛️ How **EVMs and VVPATs** work\n- 📜 The **Model Code of Conduct**\n- ✅ Checking **voter eligibility**\n\nAsk me anything about Indian elections! 🇮🇳",
-        "नमस्ते! 🙏 मैं **वोटबॉट** हूं, भारत की चुनाव प्रक्रिया में आपका गाइड।\n\nमैं इनमें मदद कर सकता हूं:\n- 🗂️ **मतदाता पंजीकरण** कैसे करें\n- 📋 **चुनाव प्रक्रिया** को चरण-दर-चरण समझें\n- 🏛️ **EVM और VVPAT** कैसे काम करते हैं\n- 📜 **आदर्श आचार संहिता** क्या है\n- ✅ **मतदाता पात्रता** जांचें\n\nभारतीय चुनावों के बारे में कुछ भी पूछें! 🇮🇳"
-    ),
-    "quick_questions_en": [
-        "How do I register to vote?",
-        "What documents do I need to vote?",
-        "What is the Model Code of Conduct?",
-        "How does an EVM work?",
-        "What is NOTA?",
-        "How are election results counted?",
-        "Who is eligible to stand as a candidate?",
-        "What if my name is not on voter list?",
-    ],
-    "quick_questions_hi": [
-        "मैं मतदाता पंजीकरण कैसे करूं?",
-        "वोट देने के लिए कौन से दस्तावेज चाहिए?",
-        "आदर्श आचार संहिता क्या है?",
-        "EVM कैसे काम करती है?",
-        "NOTA क्या है?",
-        "चुनाव परिणाम कैसे गिने जाते हैं?",
-        "उम्मीदवार बनने के लिए कौन पात्र है?",
-        "अगर मेरा नाम मतदाता सूची में नहीं है?",
-    ],
-}
-
 def t(key):
-    idx = 1 if is_hindi else 0
-    val = T[key]
-    return val[idx] if isinstance(val, tuple) else val
+    lang = st.session_state["lang"]
+    if key in UI_TRANSLATIONS:
+        return UI_TRANSLATIONS[key].get(lang, UI_TRANSLATIONS[key]["en"])
+    return ""
 
 def text_to_speech(text: str, lang: str = "en") -> bytes:
     try:
@@ -118,78 +87,48 @@ def transcribe_audio(audio_bytes: bytes, lang: str = "en") -> str:
     except Exception as e:
         return f"Could not transcribe: {e}"
 
+# --- 100% ORIGINAL CLEAN DESIGN ---
 st.markdown("""
 <style>
-    .main-header {
-        background: linear-gradient(135deg, #FF9933 0%, #FFFFFF 50%, #138808 100%);
-        padding: 1.5rem 2rem; border-radius: 12px;
-        text-align: center; margin-bottom: 1rem;
-    }
-    .main-header h1 { color: #000080; font-size: 2.2rem; margin: 0; }
-    .main-header p { color: #333; margin: 0.3rem 0 0 0; }
-    .eligibility-box { border-radius: 10px; padding: 1rem; margin: 0.5rem 0; }
-    .eligible { background: #d5f5e3; border: 1px solid #27ae60; }
-    .not-eligible { background: #fadbd8; border: 1px solid #e74c3c; }
-    .info-chip {
-        display: inline-block; background: #f0f3ff;
-        border: 1px solid #000080; color: #000080;
-        border-radius: 20px; padding: 2px 10px; font-size: 0.8rem; margin: 2px;
-    }
-    .voice-box {
-        background: #f8f0ff; border: 1px solid #8e44ad;
-        border-radius: 10px; padding: 0.8rem 1rem; margin-bottom: 0.8rem;
+    /* The thin tricolor strip at the very top */
+    [data-testid="stHeader"]::before {
+        content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 6px;
+        background: linear-gradient(90deg, #FF9933 33%, #fff 33%, #fff 66%, #138808 66%);
+        z-index: 999;
     }
 </style>
 """, unsafe_allow_html=True)
 
-col_title, col_lang = st.columns([5, 1])
-with col_title:
-    st.markdown(f"""
-    <div class="main-header">
-        <h1>{t("title")}</h1>
-        <p>{t("subtitle")}</p>
-    </div>
-    """, unsafe_allow_html=True)
-with col_lang:
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    lang_label = "🇮🇳 हिंदी में बदलें" if not is_hindi else "🔤 Switch to English"
-    if st.button(lang_label, key="lang_toggle", use_container_width=True):
-        new_lang = "hi" if not is_hindi else "en"
-        st.session_state["lang"] = new_lang
-        
-        if "messages" in st.session_state and st.session_state["messages"]:
-            target_lang = "Hindi" if new_lang == "hi" else "English"
-            model = st.session_state.get("model")
-            if model:
-                with st.spinner(f"Translating chat to {target_lang}... / चैट का अनुवाद हो रहा है..."):
-                    error_occurred = False
-                    try:
-                        import time
-                        for msg in st.session_state["messages"]:
-                            msg["content"] = translate_text(model, msg["content"], target_lang)
-                            if "audio" in msg:
-                                msg.pop("audio")
-                            time.sleep(0.5)  # Avoid rate limits
-                    except Exception as e:
-                        error_occurred = True
-                        st.error(f"Translation failed: {e}")
-                            
-        if not locals().get("error_occurred", False):
-            st.session_state["messages"] = list(st.session_state["messages"])
-            # Rebuild chat session with translated history so Gemini doesn't bleed previous lang
-            if "model" in st.session_state and "messages" in st.session_state:
-                history = []
-                for m in st.session_state["messages"]:
-                    role = "model" if m["role"] == "assistant" else "user"
-                    history.append(types.Content(role=role, parts=[types.Part.from_text(text=m["content"])]))
-                st.session_state["chat_session"] = create_chat_session(st.session_state["model"], history=history)
-            else:
-                st.session_state["chat_session"] = None
-            st.rerun()
+st.title(f"🗳️ {t('title')}")
+st.markdown(f"#### {t('subtitle')}")
 
 with st.sidebar:
+    st.markdown(f"### 🌐 {t('language') if 'language' in UI_TRANSLATIONS else 'Language'}")
+    lang_options = list(LANGUAGES.keys())
+    current_lang_idx = lang_options.index(st.session_state["lang"])
+    
+    selected_lang = st.selectbox(
+        "Select Language",
+        lang_options,
+        index=current_lang_idx,
+        format_func=lambda x: LANGUAGES[x],
+        key="lang_select",
+        label_visibility="collapsed"
+    )
+    
+    if selected_lang != st.session_state["lang"]:
+        st.session_state["lang"] = selected_lang
+        # Trigger translation if needed
+        if "messages" in st.session_state and st.session_state["messages"]:
+            model = st.session_state.get("model")
+            if model:
+                target_lang_name = LANGUAGES[selected_lang]
+                translate_messages(model, st.session_state["messages"], target_lang_name)
+        st.rerun()
+
+    st.divider()
     st.markdown("### 📚 Quick Topics / त्वरित विषय")
-    questions = T["quick_questions_hi"] if is_hindi else T["quick_questions_en"]
+    questions = t("quick_questions")
     for q in questions:
         if st.button(q, key=f"quick_{q}", use_container_width=True):
             st.session_state["prefill_question"] = q
@@ -199,13 +138,13 @@ with st.sidebar:
     st.info("**Voter Helpline:** 1950\n\n**ECI Portal:** voters.eci.gov.in\n\n**MCC Violations:** cVIGIL App")
 
     st.divider()
-    if st.button(t("clear_chat"), use_container_width=True):
+    if st.button(t("clear_chat"), key="sidebar_clear_chat", use_container_width=True):
         st.session_state["messages"] = []
         st.session_state["chat_session"] = None
         st.rerun()
 
-tab_chat, tab_timeline, tab_eligibility, tab_guide = st.tabs([
-    t("tab_chat"), t("tab_timeline"), t("tab_eligibility"), t("tab_guide")
+tab_chat, tab_timeline, tab_eligibility, tab_candidates, tab_simulator, tab_guide = st.tabs([
+    t("tab_chat"), t("tab_timeline"), t("tab_eligibility"), t("tab_candidates"), t("tab_simulator"), t("tab_guide")
 ])
 
 # ── TAB 1: CHAT ───────────────────────────────────────────────────────────────
@@ -229,8 +168,8 @@ with tab_chat:
         st.session_state["messages"] = [{"role": "assistant", "content": t("welcome")}]
 
     # ── Compact inline mic — sits beside the Streamlit chat input bar ──────
-    # Language for voice follows the UI toggle (is_hindi), not a separate radio.
-    speech_lang_code = "hi-IN" if is_hindi else "en-IN"
+    SPEECH_CODES = {"en": "en-IN", "hi": "hi-IN", "bn": "bn-IN", "mr": "mr-IN", "ta": "ta-IN"}
+    speech_lang_code = SPEECH_CODES.get(st.session_state["lang"], "en-IN")
 
     mic_html = f"""
     <script>
@@ -260,20 +199,27 @@ with tab_chat:
                 z-index: 999;
               }}
               #micBtn {{
-                background: transparent;
+                background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='9' y='2' width='6' height='12' rx='3' fill='%23888'/%3E%3Cpath d='M5 10c0 3.866 3.134 7 7 7s7-3.134 7-7' stroke='%23888' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='12' y1='17' x2='12' y2='21' stroke='%23888' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='8' y1='21' x2='16' y2='21' stroke='%23888' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat center;
+                background-size: 24px;
                 border: none;
-                font-size: 1.25rem;
+                width: 32px;
+                height: 32px;
                 cursor: pointer;
-                padding: 4px 6px;
+                padding: 4px;
                 border-radius: 50%;
-                line-height: 1;
-                transition: background 0.15s;
+                transition: background 0.15s, transform 0.1s;
+                opacity: 0.7;
               }}
-              #micBtn:hover {{ background: rgba(142,68,173,0.12); }}
-              #micBtn.listening {{ animation: micpulse 0.9s infinite; }}
+              #micBtn:hover {{ background-color: rgba(142,68,173,0.12); opacity: 1; }}
+              #micBtn:active {{ transform: scale(0.9); }}
+              #micBtn.listening {{ 
+                animation: micpulse 0.9s infinite; 
+                background-color: rgba(231, 76, 60, 0.1);
+                opacity: 1;
+              }}
               @keyframes micpulse {{
-                0%,100% {{ text-shadow: 0 0 0px #e74c3c; }}
-                50%      {{ text-shadow: 0 0 8px #e74c3c; }}
+                0%,100% {{ box-shadow: 0 0 0px #e74c3c; }}
+                50%      {{ box-shadow: 0 0 8px #e74c3c; }}
               }}
               #micStatus {{
                 font-size: 0.72rem;
@@ -300,7 +246,7 @@ with tab_chat:
           const btn = parentDoc.createElement('button');
           btn.id = 'micBtn';
           btn.title = 'Click to speak / बोलने के लिए क्लिक करें';
-          btn.textContent = '🎤';
+          btn.textContent = '';
 
           wrap.appendChild(status);
           wrap.appendChild(btn);
@@ -325,7 +271,7 @@ with tab_chat:
 
           rec.onstart = () => {{
             listening = true;
-            btn.textContent = '⏹️';
+            btn.textContent = '';
             btn.classList.add('listening');
             status.textContent = '🔴';
             status.classList.add('active');
@@ -353,7 +299,7 @@ with tab_chat:
 
           rec.onend = () => {{
             listening = false;
-            btn.textContent = '🎤';
+            btn.textContent = '';
             btn.classList.remove('listening');
             status.textContent = '';
             status.classList.remove('active');
@@ -388,6 +334,7 @@ with tab_chat:
             st.markdown(msg["content"])
             if msg["role"] == "assistant" and audio_output and msg.get("audio"):
                 st.audio(msg["audio"], format="audio/mp3")
+                st.markdown('<div class="voice-wave"><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div><span style="font-size:0.7rem; color:#8e44ad; font-style:italic;">AI Speaking...</span></div>', unsafe_allow_html=True)
 
     prefill = st.session_state.pop("prefill_question", None)
     user_input = st.chat_input(t("chat_placeholder")) or prefill
@@ -400,17 +347,14 @@ with tab_chat:
             st.markdown(user_input)
         st.session_state["messages"].append({"role": "user", "content": user_input})
 
-        # Language logic:
         # UI language (toggle) takes full priority.
-        # Hindi UI → always respond in Hindi, regardless of input script.
-        # English UI → always respond in English, regardless of input script.
-        if is_hindi:
-            query = f"कृपया हिंदी में जवाब दें (respond only in Hindi): {user_input}"
-        else:
-            query = f"Please respond in English only: {user_input}"
+        lang_name = LANGUAGES.get(st.session_state["lang"], "English").split("(")[-1].strip(")")
+        # Fact-Check Grounding Instruction
+        grounding = " You are an official Election Assistant grounded in the Election Commission of India (ECI) Handbook. Only provide legally and procedurally accurate information."
+        query = f"Please respond ONLY in {lang_name} (Preserve all markdown formatting). {grounding} User Question: {user_input}"
 
         with st.chat_message("assistant", avatar="🗳️"):
-            with st.spinner("VoteBot सोच रहा है..." if is_hindi else "VoteBot is thinking..."):
+            with st.spinner(f"VoteBot is thinking in {lang_name}..."):
                 response = ask_votebot(st.session_state["chat_session"], query)
             st.markdown(response)
 
@@ -427,10 +371,7 @@ with tab_chat:
 
 # ── TAB 2: TIMELINE ───────────────────────────────────────────────────────────
 with tab_timeline:
-    if is_hindi:
-        st.markdown("## 📅 भारतीय चुनाव — 8 चरण")
-    else:
-        st.markdown("## 📅 How an Indian Election Works — Step by Step")
+    st.markdown(f"## {t('tab_timeline')}")
 
     phases = kb["election_process_phases"]
     phase_icons = ["📢", "📝", "🔍", "🚪", "📣", "🗳️", "🔢", "🏛️"]
@@ -457,15 +398,28 @@ with tab_timeline:
 
 # ── TAB 3: ELIGIBILITY ────────────────────────────────────────────────────────
 with tab_eligibility:
-    if is_hindi:
-        st.markdown("## ✅ क्या मैं वोट देने के लिए पात्र हूं?")
-    else:
-        st.markdown("## ✅ Am I Eligible to Vote?")
+    st.markdown(f"## {t('tab_eligibility')}")
+
+    st.info("✨ **Smart Auto-Fill:** Upload a photo of your ID (Aadhaar, PAN) and Gemini Vision will securely extract your age! (Images are processed instantly and deleted).")
+    
+    uploaded_file = st.file_uploader("Upload ID Image", type=["jpg", "jpeg", "png"])
+    
+    if uploaded_file is not None:
+        if "last_uploaded" not in st.session_state or st.session_state["last_uploaded"] != uploaded_file.name:
+            with st.spinner("Scanning ID..."):
+                image_data = uploaded_file.getvalue()
+                model = st.session_state.get("model")
+                if model:
+                    extracted = extract_age_from_id(model, image_data)
+                    st.session_state["extracted_age"] = extracted
+                    st.session_state["last_uploaded"] = uploaded_file.name
+
+    default_age = st.session_state.get("extracted_age", 20)
 
     with st.form("eligibility_form"):
         col1, col2 = st.columns(2)
         with col1:
-            age = st.number_input("आपकी उम्र / Your Age", min_value=1, max_value=120, value=20)
+            age = st.number_input("आपकी उम्र / Your Age", min_value=1, max_value=120, value=default_age)
             is_citizen = st.radio("भारतीय नागरिक? / Indian citizen?", ["Yes / हाँ", "No / नहीं"]) == "Yes / हाँ"
         with col2:
             is_resident = st.radio("भारत में निवास? / Resident in India?", ["Yes / हाँ", "No / नहीं (NRI)"]) == "Yes / हाँ"
@@ -493,7 +447,213 @@ with tab_eligibility:
         with cols[i % 3]:
             st.markdown(f"<span class='info-chip'>{id_doc}</span>", unsafe_allow_html=True)
 
-# ── TAB 4: VOTER GUIDE ────────────────────────────────────────────────────────
+# ── TAB 4: CANDIDATES ─────────────────────────────────────────────────────────
+with tab_candidates:
+    st.markdown(f"## {t('tab_candidates')}")
+    st.info("Enter your Pincode to see candidates in your constituency and get an AI-powered summary of their affidavits.")
+    
+    pincode = st.text_input("Enter Pincode (e.g. 110001, 221001, 673121)", placeholder="110001")
+    
+    if pincode:
+        found_constituency = None
+        for item in candidates_data:
+            if pincode in item["pincodes"]:
+                found_constituency = item
+                break
+        
+        if found_constituency:
+            st.success(f"📍 Constituency Found: **{found_constituency['constituency']}, {found_constituency['state']}**")
+            
+            for cand in found_constituency["candidates"]:
+                with st.expander(f"👤 {cand['name']} ({cand['party']})"):
+                    col1, col2 = st.columns([1, 1])
+                    with col1:
+                        st.markdown(f"**Education:** {cand['education']}")
+                        st.markdown(f"**Profession:** {cand['profession']}")
+                    with col2:
+                        st.markdown(f"**Total Assets:** ₹{cand['total_assets_inr']}")
+                        st.markdown(f"**Criminal Cases:** {cand['criminal_cases']}")
+                    
+                    if st.button(f"✨ Summarize Affidavit for {cand['name']}", key=f"sum_{cand['name']}"):
+                        model = st.session_state.get("model")
+                        if model:
+                            with st.spinner("Gemini is analyzing affidavit data..."):
+                                lang_name = LANGUAGES.get(st.session_state["lang"], "English").split("(")[-1].strip(")")
+                                summary = summarize_candidate(model, cand, lang_name)
+                                st.markdown("---")
+                                st.markdown(f"### 🤖 AI Summary ({lang_name})")
+                                st.markdown(summary)
+                        else:
+                            st.error("AI model not initialized.")
+        else:
+            st.warning("No candidate data found for this Pincode in our sample dataset.")
+
+# ── TAB 5: SIMULATOR ──────────────────────────────────────────────────────────
+with tab_simulator:
+    st.markdown(f"## {t('tab_simulator')}")
+    
+    st.markdown("""
+    <style>
+    .sim-container {
+        height: 320px; background: #ffffff; border-radius: 25px;
+        display: flex; align-items: center; justify-content: center;
+        border: 1px solid #f0f0f0; margin-bottom: 25px; position: relative;
+        overflow: hidden; box-shadow: inset 0 0 20px rgba(0,0,0,0.02);
+    }
+    
+    /* --- STEP 1: ZOOM MAP --- */
+    .map-base {
+        width: 150px; height: 150px; background: #e1f5fe; border-radius: 50%;
+        position: relative; border: 5px solid #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        overflow: hidden; animation: zoomIn 3s infinite alternate;
+    }
+    .map-grid {
+        background-image: radial-gradient(#81d4fa 1px, transparent 1px);
+        background-size: 20px 20px; width: 100%; height: 100%;
+    }
+    .map-pin {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        font-size: 40px; filter: drop-shadow(0 5px 10px rgba(0,0,0,0.2));
+    }
+    @keyframes zoomIn {
+        0% { transform: scale(0.8); }
+        100% { transform: scale(1.4); }
+    }
+
+    /* --- STEP 2: DYNAMIC INKING --- */
+    .finger-box { position: relative; height: 150px; width: 100px; display: flex; justify-content: center; align-items: flex-end; }
+    .css-finger {
+        width: 40px; height: 100px; background: #ffe0bd; border-radius: 20px 20px 5px 5px;
+        border: 2px solid #e0c090; position: relative;
+    }
+    .css-nail {
+        width: 24px; height: 30px; background: rgba(255,255,255,0.4);
+        border-radius: 10px 10px 5px 5px; position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+    }
+    .finger-ink-tip {
+        position: absolute; top: 0; left: 0; width: 100%; height: 25px;
+        background: #6c5ce7; border-radius: 20px 20px 0 0; 
+        opacity: 0; animation: inkApply 3s infinite; z-index: 2;
+    }
+    .ink-droplet {
+        position: absolute; top: -60px; left: 50%; transform: translateX(-50%) rotate(45deg); 
+        width: 12px; height: 12px; background: #6c5ce7; border-radius: 0 50% 50% 50%;
+        animation: dropDown 3s infinite; z-index: 3;
+    }
+    @keyframes dropDown {
+        0% { transform: translateY(0) translateX(-50%) rotate(45deg); opacity: 0; }
+        30% { transform: translateY(60px) translateX(-50%) rotate(45deg); opacity: 1; }
+        50%, 100% { transform: translateY(60px) translateX(-50%) rotate(45deg); opacity: 0; }
+    }
+    @keyframes inkApply {
+        0%, 35% { opacity: 0; }
+        50%, 100% { opacity: 1; }
+    }
+
+    /* --- STEP 4: VVPAT SLIP --- */
+    .vvpat-box {
+        width: 180px; height: 140px; background: #2c3e50; border-radius: 10px;
+        position: relative; border: 4px solid #34495e; overflow: hidden;
+    }
+    .vvpat-window {
+        width: 140px; height: 100px; background: #ecf0f1; margin: 15px auto;
+        border-radius: 5px; position: relative; box-shadow: inset 0 5px 15px rgba(0,0,0,0.2);
+    }
+    .vvpat-slip {
+        width: 100px; height: 70px; background: white; border: 1px solid #ddd;
+        position: absolute; left: 20px; top: -80px;
+        animation: slipFall 4s infinite; padding: 5px; box-sizing: border-box;
+    }
+    .vvpat-slip::after {
+        content: '🗳️ ✓'; font-family: sans-serif; font-size: 10px; color: #138808; font-weight: bold;
+        display: block; text-align: center; margin-top: 15px;
+    }
+    @keyframes slipFall {
+        0% { transform: translateY(0); }
+        20% { transform: translateY(90px); }
+        30% { transform: translateY(80px); }
+        40% { transform: translateY(90px); }
+        80%, 100% { transform: translateY(90px); opacity: 0; }
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    if "sim_step" not in st.session_state:
+        st.session_state["sim_step"] = 1
+    
+    progress_val = (st.session_state["sim_step"] - 1) / 3
+    st.progress(progress_val)
+    
+    col_vis, col_text = st.columns([1, 1])
+    
+    if st.session_state["sim_step"] == 1:
+        with col_vis:
+            st.markdown('<div class="sim-container"><div class="map-base"><div class="map-grid"></div><div class="map-pin">📍</div></div></div>', unsafe_allow_html=True)
+        with col_text:
+            st.markdown(f"### {t('sim_step1_title')}")
+            st.markdown(t("sim_step1_desc"))
+            if st.button(t("sim_step1_btn"), use_container_width=True, type="primary"):
+                st.session_state["sim_step"] = 2
+                st.rerun()
+
+    elif st.session_state["sim_step"] == 2:
+        with col_vis:
+            st.markdown('<div class="sim-container"><div class="finger-box"><div class="ink-droplet"></div><div class="css-finger"><div class="css-nail"></div><div class="finger-ink-tip"></div></div></div></div>', unsafe_allow_html=True)
+        with col_text:
+            st.markdown(f"### {t('sim_step2_title')}")
+            st.markdown(t("sim_step2_desc"))
+            if st.button(t("sim_step2_btn"), use_container_width=True, type="primary"):
+                st.session_state["sim_step"] = 3
+                st.rerun()
+
+    elif st.session_state["sim_step"] == 3:
+        with col_vis:
+            evm_html = """
+            <style>
+            .evm-container { perspective: 1000px; display: flex; justify-content: center; }
+            .evm-panel { width: 240px; background: #ecf0f1; border-radius: 12px; transform: rotateX(15deg); box-shadow: 0 15px 30px rgba(0,0,0,0.1); padding: 15px; border: 2px solid #bdc3c7; }
+            .evm-row { display: flex; align-items: center; justify-content: space-between; padding: 6px; border-bottom: 1px solid #ddd; }
+            .evm-btn { width: 40px; height: 30px; background: #3498db; border: none; border-radius: 4px; box-shadow: 0 4px #2980b9; cursor: pointer; }
+            .evm-light { width: 10px; height: 10px; background: #2ecc71; border-radius: 50%; box-shadow: 0 0 8px #2ecc71; }
+            </style>
+            <div class="evm-container">
+                <div class="evm-panel">
+                    <div style="background:#34495e; height:40px; border-radius:6px; margin-bottom:12px; display:flex; align-items:center; padding:0 12px;">
+                        <div class="evm-light"></div><span style="color:white; font-size:11px; margin-left:10px; font-family:sans-serif;">READY / तैयार</span>
+                    </div>
+                    <div class="evm-row"><span style="font-size:10px; font-weight:bold;">CANDIDATE A</span><button class="evm-btn"></button></div>
+                    <div class="evm-row"><span style="font-size:10px; font-weight:bold;">CANDIDATE B</span><button class="evm-btn"></button></div>
+                    <div class="evm-row"><span style="font-size:10px; font-weight:bold;">NOTA</span><button class="evm-btn"></button></div>
+                </div>
+            </div>
+            """
+            st.components.v1.html(evm_html, height=320)
+        with col_text:
+            st.markdown(f"### {t('sim_step3_title')}")
+            st.markdown(t("sim_step3_desc"))
+
+            if st.button("🔊 PRESS TO VOTE / वोट दें", use_container_width=True, type="primary"):
+                st.components.v1.html('<audio autoplay><source src="https://www.soundjay.com/buttons/beep-01a.mp3" type="audio/mpeg"></audio>', height=0)
+                st.toast("Vote Recorded!", icon="🗳️")
+                import time
+                time.sleep(1.5)
+                st.session_state["sim_step"] = 4
+                st.rerun()
+
+    elif st.session_state["sim_step"] == 4:
+        with col_vis:
+            st.markdown('<div class="sim-container"><div class="vvpat-box"><div class="vvpat-window"><div class="vvpat-slip"></div></div></div></div>', unsafe_allow_html=True)
+        with col_text:
+            st.markdown(f"### {t('sim_step4_title')}")
+            st.markdown(t("sim_step4_desc"))
+            st.success("🎉 **Success! Your vote has been verified.**")
+            st.balloons()
+            
+            if st.button(t("sim_reset"), use_container_width=True):
+                st.session_state["sim_step"] = 1
+                st.rerun()
+
+# ── TAB 6: VOTER GUIDE ────────────────────────────────────────────────────────
 with tab_guide:
     st.markdown("## 📖 Complete Voter Guide / संपूर्ण मतदाता गाइड")
     st.markdown("### 📝 How to Register as a Voter")
