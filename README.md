@@ -18,6 +18,7 @@
 | **🔍 Candidate Affidavit AI** | Instant summaries of candidate assets, education, and criminal records from pincodes. | AI Summarization |
 | **📅 Interactive Timeline** | 8-phase breakdown of the election process with milestone tracking. | ECI Phase Logic |
 | **📜 MCC & FAQ Hub** | Dynamic access to Model Code of Conduct rules and common voter queries. | Structured KB Injection |
+| **🌐 Google Ecosystem & a11y** | Native Google Calendar reminders, Google Maps integration, and fully ARIA-compliant accessible UI. | Google APIs + a11y Standards |
 
 ---
 
