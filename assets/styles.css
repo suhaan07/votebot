@@ -1,0 +1,101 @@
+/* The thin tricolor strip at the very top */
+[data-testid="stHeader"]::before {
+    content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 6px;
+    background: linear-gradient(90deg, #FF9933 33%, #fff 33%, #fff 66%, #138808 66%);
+    z-index: 999;
+}
+.voice-wave {
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 4px 8px;
+}
+.wave-bar {
+    width: 3px; height: 10px; background: #8e44ad; border-radius: 3px;
+    animation: wave 1.2s ease-in-out infinite;
+}
+.wave-bar:nth-child(2) { animation-delay: 0.1s; }
+.wave-bar:nth-child(3) { animation-delay: 0.2s; }
+@keyframes wave {
+    0%, 100% { transform: scaleY(0.5); }
+    50% { transform: scaleY(1.5); }
+}
+
+.sim-container {
+    height: 320px; background: #ffffff; border-radius: 25px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid #f0f0f0; margin-bottom: 25px; position: relative;
+    overflow: hidden; box-shadow: inset 0 0 20px rgba(0,0,0,0.02);
+}
+
+/* --- STEP 1: ZOOM MAP --- */
+.map-base {
+    width: 150px; height: 150px; background: #e1f5fe; border-radius: 50%;
+    position: relative; border: 5px solid #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    overflow: hidden; animation: zoomIn 3s infinite alternate;
+}
+.map-grid {
+    background-image: radial-gradient(#81d4fa 1px, transparent 1px);
+    background-size: 20px 20px; width: 100%; height: 100%;
+}
+.map-pin {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 40px; filter: drop-shadow(0 5px 10px rgba(0,0,0,0.2));
+}
+@keyframes zoomIn {
+    0% { transform: scale(0.8); }
+    100% { transform: scale(1.4); }
+}
+
+/* --- STEP 2: DYNAMIC INKING --- */
+.finger-box { position: relative; height: 150px; width: 100px; display: flex; justify-content: center; align-items: flex-end; }
+.css-finger {
+    width: 40px; height: 100px; background: #ffe0bd; border-radius: 20px 20px 5px 5px;
+    border: 2px solid #e0c090; position: relative;
+}
+.css-nail {
+    width: 24px; height: 30px; background: rgba(255,255,255,0.4);
+    border-radius: 10px 10px 5px 5px; position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+}
+.finger-ink-tip {
+    position: absolute; top: 0; left: 0; width: 100%; height: 25px;
+    background: #6c5ce7; border-radius: 20px 20px 0 0; 
+    opacity: 0; animation: inkApply 3s infinite; z-index: 2;
+}
+.ink-droplet {
+    position: absolute; top: -60px; left: 50%; transform: translateX(-50%) rotate(45deg); 
+    width: 12px; height: 12px; background: #6c5ce7; border-radius: 0 50% 50% 50%;
+    animation: dropDown 3s infinite; z-index: 3;
+}
+@keyframes dropDown {
+    0% { transform: translateY(0) translateX(-50%) rotate(45deg); opacity: 0; }
+    30% { transform: translateY(60px) translateX(-50%) rotate(45deg); opacity: 1; }
+    50%, 100% { transform: translateY(60px) translateX(-50%) rotate(45deg); opacity: 0; }
+}
+@keyframes inkApply {
+    0%, 35% { opacity: 0; }
+    50%, 100% { opacity: 1; }
+}
+
+/* --- STEP 4: VVPAT SLIP --- */
+.vvpat-box {
+    width: 180px; height: 140px; background: #2c3e50; border-radius: 10px;
+    position: relative; border: 4px solid #34495e; overflow: hidden;
+}
+.vvpat-window {
+    width: 140px; height: 100px; background: #ecf0f1; margin: 15px auto;
+    border-radius: 5px; position: relative; box-shadow: inset 0 5px 15px rgba(0,0,0,0.2);
+}
+.vvpat-slip {
+    width: 100px; height: 70px; background: white; border: 1px solid #ddd;
+    position: absolute; left: 20px; top: -80px;
+    animation: slipFall 4s infinite; padding: 5px; box-sizing: border-box;
+}
+.vvpat-slip::after {
+    content: ' (Done)'; font-family: sans-serif; font-size: 10px; color: #138808; font-weight: bold;
+    display: block; text-align: center; margin-top: 15px;
+}
+@keyframes slipFall {
+    0% { transform: translateY(0); }
+    20% { transform: translateY(90px); }
+    30% { transform: translateY(80px); }
+    40% { transform: translateY(90px); }
+    80%, 100% { transform: translateY(90px); opacity: 0; }
+}

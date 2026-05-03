@@ -4,6 +4,7 @@ Features: Hindi/English toggle, Voice input (Hindi + English), Audio output (gTT
 """
 
 import streamlit as st
+import urllib.parse
 import json
 import os
 import io
@@ -15,15 +16,21 @@ from utils.llm import get_gemini_model, create_chat_session, ask_votermitra, che
 from utils.translations import LANGUAGES, UI_TRANSLATIONS
 
 load_dotenv()
+
+# Validate GEMINI_API_KEY environment variable
 api_key = os.getenv("GEMINI_API_KEY")
+if not api_key:
+    st.error("GEMINI_API_KEY environment variable is not set. Please configure it to use VoterMitra.")
+    st.stop()
 
 st.set_page_config(
     page_title="VoterMitra - India Election Assistant",
-    page_icon="",
+    page_icon="🗳️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
+# Initialize language state (single initialization)
 if "lang" not in st.session_state:
     st.session_state["lang"] = "en"
 
@@ -44,26 +51,40 @@ kb = load_kb(st.session_state["lang"])
 def load_candidates():
     c_path = Path(__file__).parent / "data" / "candidates.json"
     if c_path.exists():
-        with open(c_path, "r") as f:
+        with open(c_path, "r", encoding="utf-8") as f:
             return json.load(f)
     return []
 
 candidates_data = load_candidates()
 
-if "lang" not in st.session_state:
-    st.session_state["lang"] = "en"
+@st.cache_data
+def load_styles():
+    """Load CSS from assets/styles.css"""
+    styles_path = Path(__file__).parent / "assets" / "styles.css"
+    if styles_path.exists():
+        with open(styles_path, "r", encoding="utf-8") as f:
+            return f.read()
+    return ""
 
-def t(key):
+def t(key, **kwargs):
+    """Translate key with placeholder support and graceful missing key handling."""
     lang = st.session_state["lang"]
     if key in UI_TRANSLATIONS:
-        return UI_TRANSLATIONS[key].get(lang, UI_TRANSLATIONS[key]["en"])
+        text = UI_TRANSLATIONS[key].get(lang, UI_TRANSLATIONS[key].get("en", ""))
+        if text:
+            try:
+                return text.format(**kwargs) if kwargs else text
+            except KeyError as e:
+                # Log missing placeholder but return partial text
+                print(f"Missing placeholder in {key}: {e}")
+                return text
     return ""
 
 def text_to_speech(text: str, lang: str = "en") -> bytes:
     try:
         from gtts import gTTS
         tts_lang = "hi" if lang == "hi" else "en"
-        clean_text = text.replace("*", "").replace("#", "").replace("_", "").replace("Tip: ", "").replace("", "")
+        clean_text = text.replace("*", "").replace("#", "").replace("_", "").replace("Tip: ", "").replace("⭐", "")
         tts = gTTS(text=clean_text, lang=tts_lang, slow=False)
         audio_buffer = io.BytesIO()
         tts.write_to_fp(audio_buffer)
@@ -95,24 +116,16 @@ def transcribe_audio(audio_bytes: bytes, lang: str = "en") -> str:
     except Exception as e:
         return f"Could not transcribe: {e}"
 
-# --- 100% ORIGINAL CLEAN DESIGN ---
-st.markdown("""
-<style>
-    /* The thin tricolor strip at the very top */
-    [data-testid="stHeader"]::before {
-        content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 6px;
-        background: linear-gradient(90deg, #FF9933 33%, #fff 33%, #fff 66%, #138808 66%);
-        z-index: 999;
-    }
-</style>
-""", unsafe_allow_html=True)
+# Load and apply CSS
+css_styles = load_styles()
+if css_styles:
+    st.markdown(f"<style>{css_styles}</style>", unsafe_allow_html=True)
 
-st.title(f" {t('title')}")
+st.title(t('title'))
 st.markdown(f"#### {t('subtitle')}")
 
-
 with st.sidebar:
-    st.markdown(f"###  {t('language_label')}")
+    st.markdown(f"### 🌐 {t('language_label')}")
     lang_options = list(LANGUAGES.keys())
     current_lang_idx = lang_options.index(st.session_state["lang"])
     
@@ -143,11 +156,11 @@ with st.sidebar:
             st.session_state["prefill_question"] = q
 
     st.divider()
-    st.markdown(f"###  {t('helplines_label')}")
+    st.markdown(f"### 📞 {t('helplines_label')}")
     st.info(f"**{t('voter_helpline_text')}**\n\n**{t('eci_portal_text')}**\n\n**{t('cvigil_text')}**")
 
     st.divider()
-    if st.button(f" {t('clear_chat')}", key="sidebar_clear_chat", use_container_width=True):
+    if st.button(t("clear_chat"), key="sidebar_clear_chat", use_container_width=True):
         st.session_state["messages"] = []
         st.session_state["chat_session"] = None
         st.rerun()
@@ -156,7 +169,7 @@ tab_chat, tab_timeline, tab_eligibility, tab_candidates, tab_simulator, tab_guid
     t("tab_chat"), t("tab_timeline"), t("tab_eligibility"), t("tab_candidates"), t("tab_simulator"), t("tab_guide")
 ])
 
-#  TAB 1: CHAT 
+# TAB 1: CHAT
 with tab_chat:
     if "model" not in st.session_state:
         try:
@@ -171,169 +184,27 @@ with tab_chat:
             for m in st.session_state["messages"]:
                 role = "model" if m["role"] == "assistant" else "user"
                 history.append(types.Content(role=role, parts=[types.Part.from_text(text=m["content"])]))
-        st.session_state["chat_session"] = create_chat_session(st.session_state["model"], history=history)
+        st.session_state["chat_session"] = create_chat_session(st.session_state["model"], kb, history=history)
 
     if "messages" not in st.session_state or not st.session_state["messages"]:
         st.session_state["messages"] = [{"role": "assistant", "content": t("welcome")}]
 
-    #  Compact inline mic - sits beside the Streamlit chat input bar 
+    # Compact inline mic - sits beside the Streamlit chat input bar
     SPEECH_CODES = {"en": "en-IN", "hi": "hi-IN", "bn": "bn-IN", "mr": "mr-IN", "ta": "ta-IN"}
     speech_lang_code = SPEECH_CODES.get(st.session_state["lang"], "en-IN")
 
-    mic_html = f"""
-    <script>
-    (function() {{
-      const parentDoc = window.parent.document;
-      
-      function inject() {{
-          // Prevent multiple injections
-          if (parentDoc.getElementById('micBtnWrap')) return true;
-
-          // Find the chat input container
-          const chatInputContainer = parentDoc.querySelector('[data-testid="stChatInput"]');
-          if (!chatInputContainer) return false;
-
-          // Add custom styles to parent document
-          if (!parentDoc.getElementById('micStyles')) {{
-            const style = parentDoc.createElement('style');
-            style.id = 'micStyles';
-            style.textContent = `
-              #micBtnWrap {{
-                position: absolute;
-                right: 3.5rem;
-                bottom: 50%;
-                transform: translateY(50%);
-                display: flex;
-                align-items: center;
-                z-index: 999;
-              }}
-              #micBtn {{
-                background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='9' y='2' width='6' height='12' rx='3' fill='%23888'/%3E%3Cpath d='M5 10c0 3.866 3.134 7 7 7s7-3.134 7-7' stroke='%23888' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='12' y1='17' x2='12' y2='21' stroke='%23888' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='8' y1='21' x2='16' y2='21' stroke='%23888' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat center;
-                background-size: 24px;
-                border: none;
-                width: 32px;
-                height: 32px;
-                cursor: pointer;
-                padding: 4px;
-                border-radius: 50%;
-                transition: background 0.15s, transform 0.1s;
-                opacity: 0.7;
-              }}
-              #micBtn:hover {{ background-color: rgba(142,68,173,0.12); opacity: 1; }}
-              #micBtn:active {{ transform: scale(0.9); }}
-              #micBtn.listening {{ 
-                animation: micpulse 0.9s infinite; 
-                background-color: rgba(231, 76, 60, 0.1);
-                opacity: 1;
-              }}
-              @keyframes micpulse {{
-                0%,100% {{ box-shadow: 0 0 0px #e74c3c; }}
-                50%      {{ box-shadow: 0 0 8px #e74c3c; }}
-              }}
-              #micStatus {{
-                font-size: 0.72rem;
-                color: #8e44ad;
-                margin-right: 4px;
-                font-style: italic;
-                white-space: nowrap;
-              }}
-              #micStatus.active {{ color: #e74c3c; font-weight: 600; }}
-            `;
-            parentDoc.head.appendChild(style);
-          }}
-
-          // Ensure the chat input container has relative positioning so our absolute button aligns correctly
-          chatInputContainer.style.position = 'relative';
-
-          // Create the wrapper
-          const wrap = parentDoc.createElement('div');
-          wrap.id = 'micBtnWrap';
-
-          const status = parentDoc.createElement('span');
-          status.id = 'micStatus';
-
-          const btn = parentDoc.createElement('button');
-          btn.id = 'micBtn';
-          btn.title = 'Click to speak / बोलने के लिए क्लिक करें';
-          btn.textContent = '';
-
-          wrap.appendChild(status);
-          wrap.appendChild(btn);
-          chatInputContainer.appendChild(wrap);
-
-          const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-          if (!SR) {{
-            btn.title = 'Speech not supported - use Chrome/Edge';
-            btn.style.opacity = '0.35';
-            btn.style.cursor  = 'not-allowed';
-            return true;
-          }}
-
-          const rec = new SR();
-          rec.lang = '{speech_lang_code}';
-          rec.interimResults = true;
-          rec.maxAlternatives = 1;
-          let listening = false;
-
-          btn.addEventListener('click', () => {{ listening ? rec.stop() : rec.start(); }});
-
-          rec.onstart = () => {{
-            listening = true;
-            btn.textContent = '';
-            btn.classList.add('listening');
-            status.textContent = '[LIVE]';
-            status.classList.add('active');
-          }};
-
-          rec.onresult = (e) => {{
-            let interim = '', final = '';
-            for (let i = e.resultIndex; i < e.results.length; i++) {{
-              const tr = e.results[i][0].transcript;
-              if (e.results[i].isFinal) final += tr; else interim += tr;
-            }}
-            status.textContent = final || interim ? ' ' + (final || interim).slice(0,24) + '...' : '[LIVE]';
-            if (final) {{
-              const ta = parentDoc.querySelector('textarea[data-testid="stChatInputTextArea"]');
-              if (ta) {{
-                Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype,'value')
-                  .set.call(ta, final);
-                ta.dispatchEvent(new Event('input', {{bubbles:true}}));
-                setTimeout(() => ta.dispatchEvent(
-                  new KeyboardEvent('keydown', {{key:'Enter',code:'Enter',keyCode:13,bubbles:true,cancelable:true}})
-                ), 550);
-              }}
-            }}
-          }};
-
-          rec.onend = () => {{
-            listening = false;
-            btn.textContent = '';
-            btn.classList.remove('listening');
-            status.textContent = '';
-            status.classList.remove('active');
-          }};
-
-          rec.onerror = (e) => {{
-            listening = false;
-            btn.textContent = '';
-            btn.classList.remove('listening');
-            status.textContent = e.error === 'not-allowed' ? '' : 'Warning: ';
-            status.classList.remove('active');
-          }};
-          
-          return true;
-      }}
-
-      if (!inject()) {{
-        const interval = setInterval(() => {{
-          if (inject()) clearInterval(interval);
-        }}, 500);
-        setTimeout(() => clearInterval(interval), 10000); // 10s max
-      }}
-    }})();
-    </script>
-    """
+    # Load mic handler script
+    mic_script_path = Path(__file__).parent / "assets" / "mic_handler.js"
+    mic_html = ""
+    if mic_script_path.exists():
+        with open(mic_script_path, "r", encoding="utf-8") as f:
+            mic_js_content = f.read()
+        mic_html = f"""
+        <script>
+        const speechLangCode = '{speech_lang_code}';
+        {mic_js_content}
+        </script>
+        """
 
     audio_output = st.toggle(f"🔊 {t('read_aloud')}", value=False, key="audio_toggle")
 
@@ -370,7 +241,7 @@ with tab_chat:
             audio_data = None
             if audio_output:
                 resp_lang = detect_language(response)
-                with st.spinner(" Generating audio..."):
+                with st.spinner("🎙️ Generating audio..."):
                     audio_data = text_to_speech(response, lang=resp_lang)
                 if audio_data:
                     st.audio(audio_data, format="audio/mp3")
@@ -378,9 +249,9 @@ with tab_chat:
         st.session_state["messages"].append({"role": "assistant", "content": response, "audio": audio_data})
         st.rerun()
 
-#  TAB 2: TIMELINE 
+# TAB 2: TIMELINE
 with tab_timeline:
-    st.markdown(f"## {t('tab_timeline')}")
+    st.markdown(f"## {t('tab_timeline')}", help="Election timeline and process phases - ARIA Label: Election Process Timeline")
 
     phases = kb["election_process_phases"]
     phase_icons = ["📢", "📝", "🔍", "🗳️", "🚚", "📊", "🏆", "📜"]
@@ -393,10 +264,26 @@ with tab_timeline:
                 for event in phase["key_events"]:
                     st.markdown(f"- {event}")
             with col2:
-                st.markdown(f"<div style='text-align:right;'><small>{t('typical_duration_label')}</small><br><b>{phase['typical_duration']}</b></div>", unsafe_allow_html=True)
+                # Google Calendar "Remind Me" Integration
+                cal_text = urllib.parse.quote(f"Election Event: {phase['name']}")
+                cal_details = urllib.parse.quote(f"Election Phase: {phase['name']} - {phase['description']}")
+                # Simulated dates for link payload 
+                cal_url = f"https://calendar.google.com/calendar/u/0/r/eventedit?text={cal_text}&details={cal_details}"
+                
+                st.markdown(f"""
+                <div style='text-align:right; display: flex; flex-direction: column; align-items: flex-end; gap: 8px;'>
+                    <div>
+                        <small>{t('typical_duration_label')}</small><br>
+                        <b>{phase['typical_duration']}</b>
+                    </div>
+                    <a href='{cal_url}' target='_blank' style='text-decoration:none;'>
+                        <button aria-label='Remind Me via Google Calendar' style='cursor: pointer; padding: 6px 12px; border-radius: 4px; border: none; font-size: 0.8rem; background-color: #ff4b4b; color: white; transition: background-color 0.3s;'>{t('remind_me')}</button>
+                    </a>
+                </div>
+                """, unsafe_allow_html=True)
 
     st.divider()
-    st.markdown("###  Types of Elections in India")
+    st.markdown("### 🏛️ Types of Elections in India")
     etype_icons = ["🏛️", "🏘️", "📜", "🏙️", "🔄"]
     cols = st.columns(len(kb["election_types"]))
     for i, etype in enumerate(kb["election_types"]):
@@ -404,13 +291,13 @@ with tab_timeline:
             st.markdown(f"#### {etype_icons[i % len(etype_icons)]}\n**{etype['name']}**")
             st.caption(etype['description'])
             if "frequency" in etype:
-                st.markdown(f" _{etype['frequency']}_")
+                st.markdown(f"🔄 _{etype['frequency']}_")
 
-#  TAB 3: ELIGIBILITY 
+# TAB 3: ELIGIBILITY
 with tab_eligibility:
     st.markdown(f"## {t('tab_eligibility')}")
 
-    st.info(f" **{t('smart_fill_info')}**")
+    st.info(f"📸 **{t('smart_fill_info')}**")
     
     uploaded_file = st.file_uploader(t('upload_id'), type=["jpg", "jpeg", "png"])
     
@@ -439,9 +326,9 @@ with tab_eligibility:
     if submitted:
         result = check_eligibility(age, is_citizen, is_resident, disqualified, lang=st.session_state["lang"])
         if result["eligible"]:
-            st.success(f"**{t('eligible_success')}**")
+            st.success(f"✅ **{t('eligible_success')}**")
         else:
-            st.error(f"**{t('eligible_error')}**")
+            st.error(f"❌ **{t('eligible_error')}**")
         for reason in result["reasons"]:
             st.markdown(f"- {reason}")
         if result["next_steps"]:
@@ -450,17 +337,17 @@ with tab_eligibility:
                 st.markdown(f"{i}. {step}")
 
     st.divider()
-    st.markdown(f"###  {t('alternate_ids_label')}")
+    st.markdown(f"### 🆔 {t('alternate_ids_label')}")
     st.markdown(t('no_id_voting_info'))
     cols = st.columns(3)
     for i, id_doc in enumerate(kb["alternate_ids_for_voting"]):
         with cols[i % 3]:
             st.markdown(f"<span class='info-chip'>{id_doc}</span>", unsafe_allow_html=True)
 
-#  TAB 4: CANDIDATES 
+# TAB 4: CANDIDATES
 with tab_candidates:
     st.markdown(f"## {t('tab_candidates')}")
-    st.info(f" {t('pincode_info')}")
+    st.info(f"📍 {t('pincode_info')}")
     
     pincode = st.text_input(t('pincode_label'), placeholder="110001")
     
@@ -474,8 +361,12 @@ with tab_candidates:
         if found_constituency:
             st.success(f"{t('constituency_found')}: **{found_constituency['constituency']}, {found_constituency['state']}**")
             
+            # Google Maps Embed (Simulated map view using OpenStreetMap for generic display or specific query)
+            map_query = urllib.parse.quote(f"{found_constituency['constituency']}, {found_constituency['state']}, India")
+            st.components.v1.iframe(f"https://maps.google.com/maps?q={map_query}&t=&z=13&ie=UTF8&iwloc=&output=embed", height=300)
+            
             for cand in found_constituency["candidates"]:
-                with st.expander(f" {t('affidavit_summary')}: {cand['name']}", expanded=True):
+                with st.expander(f"📋 {t('affidavit_summary')}: {cand['name']}", expanded=True):
                     col1, col2 = st.columns([1, 1])
                     with col1:
                         st.markdown(f"**{t('party')}:** {cand['party']}")
@@ -501,95 +392,9 @@ with tab_candidates:
         else:
             st.warning(t('no_data_found'))
 
-#  TAB 5: SIMULATOR 
+# TAB 5: SIMULATOR
 with tab_simulator:
-    st.markdown(f"## {t('tab_simulator')}")
-    
-    st.markdown("""
-    <style>
-    .sim-container {
-        height: 320px; background: #ffffff; border-radius: 25px;
-        display: flex; align-items: center; justify-content: center;
-        border: 1px solid #f0f0f0; margin-bottom: 25px; position: relative;
-        overflow: hidden; box-shadow: inset 0 0 20px rgba(0,0,0,0.02);
-    }
-    
-    /* --- STEP 1: ZOOM MAP --- */
-    .map-base {
-        width: 150px; height: 150px; background: #e1f5fe; border-radius: 50%;
-        position: relative; border: 5px solid #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        overflow: hidden; animation: zoomIn 3s infinite alternate;
-    }
-    .map-grid {
-        background-image: radial-gradient(#81d4fa 1px, transparent 1px);
-        background-size: 20px 20px; width: 100%; height: 100%;
-    }
-    .map-pin {
-        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        font-size: 40px; filter: drop-shadow(0 5px 10px rgba(0,0,0,0.2));
-    }
-    @keyframes zoomIn {
-        0% { transform: scale(0.8); }
-        100% { transform: scale(1.4); }
-    }
-
-    /* --- STEP 2: DYNAMIC INKING --- */
-    .finger-box { position: relative; height: 150px; width: 100px; display: flex; justify-content: center; align-items: flex-end; }
-    .css-finger {
-        width: 40px; height: 100px; background: #ffe0bd; border-radius: 20px 20px 5px 5px;
-        border: 2px solid #e0c090; position: relative;
-    }
-    .css-nail {
-        width: 24px; height: 30px; background: rgba(255,255,255,0.4);
-        border-radius: 10px 10px 5px 5px; position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
-    }
-    .finger-ink-tip {
-        position: absolute; top: 0; left: 0; width: 100%; height: 25px;
-        background: #6c5ce7; border-radius: 20px 20px 0 0; 
-        opacity: 0; animation: inkApply 3s infinite; z-index: 2;
-    }
-    .ink-droplet {
-        position: absolute; top: -60px; left: 50%; transform: translateX(-50%) rotate(45deg); 
-        width: 12px; height: 12px; background: #6c5ce7; border-radius: 0 50% 50% 50%;
-        animation: dropDown 3s infinite; z-index: 3;
-    }
-    @keyframes dropDown {
-        0% { transform: translateY(0) translateX(-50%) rotate(45deg); opacity: 0; }
-        30% { transform: translateY(60px) translateX(-50%) rotate(45deg); opacity: 1; }
-        50%, 100% { transform: translateY(60px) translateX(-50%) rotate(45deg); opacity: 0; }
-    }
-    @keyframes inkApply {
-        0%, 35% { opacity: 0; }
-        50%, 100% { opacity: 1; }
-    }
-
-    /* --- STEP 4: VVPAT SLIP --- */
-    .vvpat-box {
-        width: 180px; height: 140px; background: #2c3e50; border-radius: 10px;
-        position: relative; border: 4px solid #34495e; overflow: hidden;
-    }
-    .vvpat-window {
-        width: 140px; height: 100px; background: #ecf0f1; margin: 15px auto;
-        border-radius: 5px; position: relative; box-shadow: inset 0 5px 15px rgba(0,0,0,0.2);
-    }
-    .vvpat-slip {
-        width: 100px; height: 70px; background: white; border: 1px solid #ddd;
-        position: absolute; left: 20px; top: -80px;
-        animation: slipFall 4s infinite; padding: 5px; box-sizing: border-box;
-    }
-    .vvpat-slip::after {
-        content: ' (Done)'; font-family: sans-serif; font-size: 10px; color: #138808; font-weight: bold;
-        display: block; text-align: center; margin-top: 15px;
-    }
-    @keyframes slipFall {
-        0% { transform: translateY(0); }
-        20% { transform: translateY(90px); }
-        30% { transform: translateY(80px); }
-        40% { transform: translateY(90px); }
-        80%, 100% { transform: translateY(90px); opacity: 0; }
-    }
-    </style>
-    """, unsafe_allow_html=True)
+    st.markdown(f"## {t('tab_simulator')}", help="Interactive voting simulator - ARIA Label: Voting Process Simulator")
 
     if "sim_step" not in st.session_state:
         st.session_state["sim_step"] = 1
@@ -601,7 +406,7 @@ with tab_simulator:
     
     if st.session_state["sim_step"] == 1:
         with col_vis:
-            st.markdown('<div class="sim-container"><div class="map-base"><div class="map-grid"></div><div class="map-pin"></div></div></div>', unsafe_allow_html=True)
+            st.markdown('<div class="sim-container" aria-label="Step 1 Vis"><div class="map-base"><div class="map-grid"></div><div class="map-pin">📍</div></div></div>', unsafe_allow_html=True)
         with col_text:
             st.markdown(f"### {t('sim_step1_title')}")
             st.markdown(t("sim_step1_desc"))
@@ -611,7 +416,7 @@ with tab_simulator:
 
     elif st.session_state["sim_step"] == 2:
         with col_vis:
-            st.markdown('<div class="sim-container"><div class="finger-box"><div class="ink-droplet"></div><div class="css-finger"><div class="css-nail"></div><div class="finger-ink-tip"></div></div></div></div>', unsafe_allow_html=True)
+            st.markdown('<div class="sim-container" aria-label="Step 2 Vis"><div class="finger-box"><div class="ink-droplet"></div><div class="css-finger"><div class="css-nail"></div><div class="finger-ink-tip"></div></div></div></div>', unsafe_allow_html=True)
         with col_text:
             st.markdown(f"### {t('sim_step2_title')}")
             st.markdown(t("sim_step2_desc"))
@@ -629,14 +434,14 @@ with tab_simulator:
             .evm-btn {{ width: 40px; height: 30px; background: #3498db; border: none; border-radius: 4px; box-shadow: 0 4px #2980b9; cursor: pointer; }}
             .evm-light {{ width: 10px; height: 10px; background: #2ecc71; border-radius: 50%; box-shadow: 0 0 8px #2ecc71; }}
             </style>
-            <div class="evm-container">
+            <div class="evm-container" role="region" aria-label="EVM Machine Display">
                 <div class="evm-panel">
                     <div style="background:#34495e; height:40px; border-radius:6px; margin-bottom:12px; display:flex; align-items:center; padding:0 12px;">
                         <div class="evm-light"></div><span style="color:white; font-size:11px; margin-left:10px; font-family:sans-serif;">{t('evm_ready')}</span>
                     </div>
-                    <div class="evm-row"><span style="font-size:10px; font-weight:bold;">{t('candidate')} A</span><button class="evm-btn"></button></div>
-                    <div class="evm-row"><span style="font-size:10px; font-weight:bold;">{t('candidate')} B</span><button class="evm-btn"></button></div>
-                    <div class="evm-row"><span style="font-size:10px; font-weight:bold;">NOTA</span><button class="evm-btn"></button></div>
+                    <div class="evm-row"><span style="font-size:10px; font-weight:bold;">{t('candidate')} A</span><button class="evm-btn" aria-label="Vote for Candidate A"></button></div>
+                    <div class="evm-row"><span style="font-size:10px; font-weight:bold;">{t('candidate')} B</span><button class="evm-btn" aria-label="Vote for Candidate B"></button></div>
+                    <div class="evm-row"><span style="font-size:10px; font-weight:bold;">NOTA</span><button class="evm-btn" aria-label="Vote None of the Above"></button></div>
                 </div>
             </div>
             """
@@ -645,7 +450,7 @@ with tab_simulator:
             st.markdown(f"### {t('sim_step3_title')}")
             st.markdown(t("sim_step3_desc"))
 
-            if st.button(t("vote_btn"), use_container_width=True, type="primary"):
+            if st.button(t("vote_btn"), use_container_width=True, type="primary", key="vote_button"):
                 st.components.v1.html('<audio autoplay><source src="https://www.soundjay.com/buttons/beep-01a.mp3" type="audio/mpeg"></audio>', height=0)
                 st.toast(t("vote_recorded"), icon="🗳️")
                 import time
@@ -655,21 +460,20 @@ with tab_simulator:
 
     elif st.session_state["sim_step"] == 4:
         with col_vis:
-            st.markdown('<div class="sim-container"><div class="vvpat-box"><div class="vvpat-window"><div class="vvpat-slip"></div></div></div></div>', unsafe_allow_html=True)
+            st.markdown('<div class="sim-container" aria-label="Step 4 Vis"><div class="vvpat-box"><div class="vvpat-window"><div class="vvpat-slip"></div></div></div></div>', unsafe_allow_html=True)
         with col_text:
             st.markdown(f"### {t('sim_step4_title')}")
             st.markdown(t("sim_step4_desc"))
-            st.success(f" **{t('vote_verified')}**")
+            st.success(f"✅ **{t('vote_verified')}**")
 
-            
             if st.button(t("sim_reset"), use_container_width=True):
                 st.session_state["sim_step"] = 1
                 st.rerun()
 
-#  TAB 6: VOTER GUIDE 
+# TAB 6: VOTER GUIDE
 with tab_guide:
-    st.markdown(f"##  {t('tab_guide')}")
-    st.markdown(f"###  {t('reg_as_voter')}")
+    st.markdown(f"## {t('tab_guide')}")
+    st.markdown(f"### 🗳️ {t('reg_as_voter')}")
     reg = kb["voter_registration"]
     for i, step in enumerate(reg["steps"], 1):
         st.markdown(f"**{i}.** {step}")
@@ -681,7 +485,7 @@ with tab_guide:
 
     st.markdown(f"### ❓ {t('faqs_label')}")
     for faq in kb["faq"]:
-        with st.expander(f"Q:  {faq['q']}"):
+        with st.expander(f"Q: 🤔 {faq['q']}"):
             st.markdown(faq["a"])
 
     st.divider()
@@ -703,7 +507,7 @@ with tab_guide:
 st.divider()
 st.markdown("""
 <div style='text-align: center; color: #888; font-size: 0.8rem;'>
-     VoterMitra - Built for Hack2Skill PW Virtual Hackathon &nbsp;|&nbsp;
+    🇮🇳 VoterMitra - Built for Hack2Skill PW Virtual Hackathon &nbsp;|&nbsp;
     Data source: Election Commission of India (ECI) &nbsp;|&nbsp;
     Powered by Google Gemini AI &nbsp;|&nbsp; Politically neutral. Always.
 </div>

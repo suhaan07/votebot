@@ -3,22 +3,17 @@ import os
 from pathlib import Path
 from google import genai
 from google.genai import types
+import streamlit as st
 from dotenv import load_dotenv
 load_dotenv()
 
-_KB_PATH = Path(__file__).parent.parent / "data" / "election_knowledge.json"
-
-def _load_knowledge() -> str:
-    with open(_KB_PATH, "r", encoding="utf-8") as f:
-        return json.dumps(json.load(f), indent=2)
-
-KNOWLEDGE_BASE = _load_knowledge()
-
-SYSTEM_PROMPT = f"""You are "VoterMitra", a friendly and neutral assistant that helps Indian citizens 
+def get_system_prompt(kb_data) -> str:
+    kb_str = json.dumps(kb_data, indent=2)
+    return f"""You are "VoterMitra", a friendly and neutral assistant that helps Indian citizens 
 understand the election process governed by the Election Commission of India (ECI).
 
 KNOWLEDGE BASE:
-{KNOWLEDGE_BASE}
+{kb_str}
 
 GUIDELINES:
 1. Be simple and clear - your users may be first-time voters.
@@ -32,17 +27,18 @@ GUIDELINES:
    - Instead of "-" or "-", always use a simple hyphen "-".
 """
 
+@st.cache_resource
 def get_gemini_model():
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GEMINI_API_KEY not set.")
     return genai.Client(api_key=api_key)
 
-def create_chat_session(client, history=None):
+def create_chat_session(client, kb_data, history=None):
     return client.chats.create(
         model="gemini-flash-lite-latest",
         config=types.GenerateContentConfig(
-            system_instruction=SYSTEM_PROMPT,
+            system_instruction=get_system_prompt(kb_data),
             temperature=0.3,
             max_output_tokens=600,
         ),
