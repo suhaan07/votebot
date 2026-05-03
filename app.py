@@ -1,5 +1,5 @@
 """
-app.py - VoteBot: India Election Assistant
+app.py - VoterMitra: India Election Assistant
 Features: Hindi/English toggle, Voice input (Hindi + English), Audio output (gTTS)
 """
 
@@ -11,14 +11,14 @@ import tempfile
 from pathlib import Path
 from dotenv import load_dotenv
 from google.genai import types
-from utils.llm import get_gemini_model, create_chat_session, ask_votebot, check_eligibility, translate_messages, extract_age_from_id, summarize_candidate
+from utils.llm import get_gemini_model, create_chat_session, ask_votermitra, check_eligibility, translate_messages, extract_age_from_id, summarize_candidate
 from utils.translations import LANGUAGES, UI_TRANSLATIONS
 
 load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
 
 st.set_page_config(
-    page_title="VoteBot - India Election Assistant",
+    page_title="VoterMitra - India Election Assistant",
     page_icon="",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -109,6 +109,7 @@ st.markdown("""
 
 st.title(f" {t('title')}")
 st.markdown(f"#### {t('subtitle')}")
+
 
 with st.sidebar:
     st.markdown(f"###  {t('language_label')}")
@@ -361,9 +362,9 @@ with tab_chat:
         grounding = " You are an official Election Assistant grounded in the Election Commission of India (ECI) Handbook. Only provide legally and procedurally accurate information."
         query = f"Please respond ONLY in {lang_name} (Preserve all markdown formatting). {grounding} User Question: {user_input}"
 
-        with st.chat_message("assistant", avatar=""):
+        with st.chat_message("assistant", avatar="🗳️"):
             with st.spinner(f"{t('thinking')} {lang_name}..."):
-                response = ask_votebot(st.session_state["chat_session"], query)
+                response = ask_votermitra(st.session_state["chat_session"], query)
             st.markdown(response)
 
             audio_data = None
@@ -438,13 +439,13 @@ with tab_eligibility:
     if submitted:
         result = check_eligibility(age, is_citizen, is_resident, disqualified, lang=st.session_state["lang"])
         if result["eligible"]:
-            st.success(f" **{t('eligible_success')}**")
+            st.success(f"**{t('eligible_success')}**")
         else:
-            st.error(f"(No) **{t('eligible_error')}**")
+            st.error(f"**{t('eligible_error')}**")
         for reason in result["reasons"]:
             st.markdown(f"- {reason}")
         if result["next_steps"]:
-            st.markdown("** Next Steps:**")
+            st.markdown(f"**{t('next_steps_label')}**")
             for i, step in enumerate(result["next_steps"], 1):
                 st.markdown(f"{i}. {step}")
 
@@ -702,7 +703,7 @@ with tab_guide:
 st.divider()
 st.markdown("""
 <div style='text-align: center; color: #888; font-size: 0.8rem;'>
-     VoteBot - Built for Hack2Skill PW Virtual Hackathon &nbsp;|&nbsp;
+     VoterMitra - Built for Hack2Skill PW Virtual Hackathon &nbsp;|&nbsp;
     Data source: Election Commission of India (ECI) &nbsp;|&nbsp;
     Powered by Google Gemini AI &nbsp;|&nbsp; Politically neutral. Always.
 </div>

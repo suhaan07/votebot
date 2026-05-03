@@ -14,7 +14,7 @@ def _load_knowledge() -> str:
 
 KNOWLEDGE_BASE = _load_knowledge()
 
-SYSTEM_PROMPT = f"""You are "VoteBot", a friendly and neutral assistant that helps Indian citizens 
+SYSTEM_PROMPT = f"""You are "VoterMitra", a friendly and neutral assistant that helps Indian citizens 
 understand the election process governed by the Election Commission of India (ECI).
 
 KNOWLEDGE BASE:
@@ -49,7 +49,7 @@ def create_chat_session(client, history=None):
         history=history
     )
 
-def ask_votebot(chat_session, user_message: str) -> str:
+def ask_votermitra(chat_session, user_message: str) -> str:
     try:
         response = chat_session.send_message(user_message)
         return response.text
